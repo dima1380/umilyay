@@ -1095,7 +1095,7 @@ function makeFighter(charDef, side, isCPU){
     facing: side===0 ? 1 : -1,
     state:'idle', animT:0, stun:0, mood:0, meter:0,
     atk:null, onGround:true, wins:0, combo:0, comboT:0,
-    bubble:0, line:'', blockT:0, input:{}, ai:{cmd:{}, plan:null, cool:0},
+    bubble:0, line:'', blockT:0, blockCool:0, input:{}, ai:{cmd:{}, plan:null, cool:0, blockCool:0},
     flashT:0, dealt:0
   };
 }
@@ -1136,7 +1136,7 @@ function startRound(){
 function diffOf(){
   const i = Math.min(game.arcadeIdx, 2);
   return {
-    block: [0.18, 0.32, 0.48][i],   // охотно ли кланяется в ответ на замах
+    block: [0.12, 0.24, 0.38][i],   // охотно ли кланяется в ответ на замах
     pause: [54, 34, 22][i],         // кадров между своими любезностями
     smart: [0.5,  0.75, 0.95][i]    // как часто дарит именно то, что вам заходит
   };
@@ -1149,6 +1149,7 @@ function aiThink(me, foe){
 
   const ai = me.ai;
   if(ai.cool > 0) ai.cool--;
+  if(ai.blockCool > 0) ai.blockCool--;
   const dist = Math.abs(foe.x - me.x);
   const dir = Math.sign(foe.x - me.x) || 1;
   const fwd = dir > 0 ? 'right' : 'left';
@@ -1163,9 +1164,10 @@ function aiThink(me, foe){
     } else ai.plan = null;
   }
 
-  // поклон — только как ответ на чужой замах, а не просто так
-  if(foe.state === 'attack' && dist < 74 && Math.random() < d.block){
-    ai.plan = { type:'block', t: 12 + Math.random()*12 };
+  // поклон — только как ответ на чужой замах, и не два подряд
+  if(foe.state === 'attack' && dist < 74 && ai.blockCool <= 0 && Math.random() < d.block){
+    ai.plan = { type:'block', t: 10 + Math.random()*10 };
+    ai.blockCool = 70 + Math.random()*40;
     c.block = true;
     return;
   }
@@ -1242,8 +1244,9 @@ function applyHit(att, def, m, fromProj){
   const aff = (AFFINITY[m.key] || {})[def.char.sex] ?? 1;
   let dmg = m.dmg * charmMul(att) * stoicMul(def) * aff;
   if(blocked){
-    // свежий поклон держит удар полностью и возвращает часть любезности отправителю
-    const fresh = def.blockT < 96;
+    // поклон держит удар целиком, только если он свежий и спина успела разогнуться
+    const fresh = def.blockT < 96 && def.blockCool <= 0;
+    def.blockCool = 48;
     const reflected = fresh ? dmg * 0.32 : 0;
     dmg = fresh ? 0 : dmg * 0.45;
     def.meter = Math.min(100, def.meter + (fresh ? 13 : 7));
@@ -1258,7 +1261,7 @@ function applyHit(att, def, m, fromProj){
       floatText('+' + Math.round(reflected), att.x, att.y-88, '#8fe9ff', 1);
       if(att.mood >= 100 && att.state !== 'ko') knockOut(att, def);
     } else {
-      floatText('СПИНА УСТАЛА', def.x, def.y-92, '#ffc93c', 1);
+      floatText(def.blockT >= 96 ? 'СПИНА УСТАЛА' : 'ПОКЛОН СМАЗАН', def.x, def.y-92, '#ffc93c', 1);
     }
     game.shake = 2;
   } else {
@@ -1306,6 +1309,7 @@ function knockOut(loser, winner){
 function updateFighter(f, foe){
   f.animT++;
   if(f.comboT>0) f.comboT--; else f.combo = 0;
+  if(f.blockCool>0) f.blockCool--;
   if(f.bubble>0) f.bubble--;
   if(f.state==='ko'){ f.vx *= 0.85; f.x += f.vx; return; }
   if(f.state==='win'){ f.vx = 0; return; }
