@@ -29,7 +29,7 @@
 
   /* два геймпада: слева ходьба, справа приёмы — раскладка повторяет клавиши */
   .gp{display:none; position:absolute; bottom:calc(6px + env(safe-area-inset-bottom));
-    gap:10px; z-index:5}
+    gap:7px; z-index:5}
   html.playing .gp{display:flex}
   #padL{left:calc(10px + env(safe-area-inset-left))}
   #padR{right:calc(10px + env(safe-area-inset-right))}
@@ -37,13 +37,21 @@
   .gp button{
     font-family:inherit; display:flex; flex-direction:column; align-items:center;
     justify-content:center; gap:1px; padding:0; cursor:pointer; touch-action:none;
-    width:clamp(66px, 20vmin, 104px); height:clamp(66px, 20vmin, 104px);
-    border:2px solid #5a4a86; border-radius:50%; background:rgba(34,22,57,.86);
+    position:relative;
+    width:clamp(42px, 11vmin, 60px); height:clamp(42px, 11vmin, 60px);
+    border:2px solid #5a4a86; border-radius:50%; background:rgba(34,22,57,.72);
     color:var(--ink); backdrop-filter:blur(2px); transition:transform .05s, background .05s;
   }
-  .gp .ico{font-size:clamp(22px,6vmin,30px); line-height:1}
-  .gp i{font-style:normal; font-size:clamp(8px,1.7vmin,10px); letter-spacing:.03em;
-    opacity:.9; font-weight:700}
+  .gp .ico{font-size:clamp(14px,3.6vmin,19px); line-height:1}
+  .gp i{font-style:normal; font-size:clamp(6px,1.2vmin,8px); letter-spacing:.01em;
+    opacity:.85; font-weight:700}
+  /* подсказка по клавише — только там, где есть настоящая клавиатура */
+  .kb{display:none; position:absolute; top:4px; left:50%; transform:translateX(-50%);
+    font-size:9px; font-weight:700; line-height:1; opacity:.75; letter-spacing:.02em}
+  @media (hover:hover) and (pointer:fine){
+    .kb{display:block}
+    .gp button{padding-top:8px; width:clamp(52px,12vmin,70px); height:clamp(52px,12vmin,70px)}
+  }
   .gp button.on{transform:scale(.92)}
   .dirbtn{color:var(--cyan); border-color:#35608f}
   .dirbtn.on{background:var(--cyan); color:#04202a}
@@ -57,6 +65,7 @@
   .c1 .s{display:none}
   html.superready .c1 .n{display:none}
   html.superready .c1 .s{display:block}
+  @media not all and (hover:hover){ .kb{display:none!important} }
   html.superready .c1{color:#2a1a00; border-color:#ffe9a8; background:rgba(255,201,60,.94);
     animation:ready 1s ease-in-out infinite}
   html.superready .c1.on{background:#fff0f6; border-color:var(--pink)}
@@ -89,18 +98,19 @@
   </div>
 
   <div class="gp" id="padL">
-    <button class="dirbtn" data-k="KeyA" aria-label="Назад"><span class="ico">◀</span></button>
-    <button class="bow" data-k="KeyS" aria-label="Поклон"><span class="ico">▼</span></button>
-    <button class="dirbtn" data-k="KeyD" aria-label="Вперёд"><span class="ico">▶</span></button>
+    <button class="dirbtn" data-k="KeyA" aria-label="Назад"><b class="kb">A</b><span class="ico">◀</span></button>
+    <button class="bow" data-k="KeyS" aria-label="Поклон"><b class="kb">S</b><span class="ico">▼</span></button>
+    <button class="dirbtn" data-k="KeyD" aria-label="Вперёд"><b class="kb">D</b><span class="ico">▶</span></button>
   </div>
 
   <div class="gp" id="padR">
     <button class="c1" data-k="ArrowLeft" data-super="ArrowUp" aria-label="Голос">
+      <b class="kb n">←</b><b class="kb s">↑</b>
       <span class="ico n">💬</span><i class="n">ГОЛОС</i>
       <span class="ico s">⭐</span><i class="s">СУПЕР</i>
     </button>
-    <button class="c2" data-k="ArrowDown" aria-label="Букет"><span class="ico">💐</span><i>БУКЕТ</i></button>
-    <button class="c3" data-k="ArrowRight" aria-label="Шоколадка"><span class="ico">🍫</span><i>ШОКОЛАД</i></button>
+    <button class="c2" data-k="ArrowDown" aria-label="Букет"><b class="kb">↓</b><span class="ico">💐</span><i>БУКЕТ</i></button>
+    <button class="c3" data-k="ArrowRight" aria-label="Шоколадка"><b class="kb">→</b><span class="ico">🍫</span><i>ШОКОЛАД</i></button>
   </div>
 </div>
 <div id="rotHint">↻ <b>Поверните телефон</b> — игра уже развёрнута</div>
@@ -369,42 +379,42 @@ const FIGHTERS = [
     head:'flatcap', beard:'stubble',
     superName:'АНЕКДОТ ПРО ТЁЩУ', superIcon:'joke',
     lines:['А ГЛАЗА-ТО КАК ФАРЫ','НУ ТЫ ЖЕ ЗОЛОТО','ПОМНЮ ТЕБЯ МАЛЫМ'],
-    win:'ПЕРВЫМ БУДЕШЬ ТЫ. НО В СЛЕДУЮЩИЙ РАЗ.' },
+    win:'ЗАПРАВЛЯЮСЬ Я. ТЫ СЛЕДУЮЩИЙ, СЫНОК.' },
   { id:'marina', sex:'f', name:'МАРИНА', car:'СЕМЕЙНЫЙ КРОССОВЕР', bio:'МАМА ТРОИХ, ВЕЗЁТ НА ПЛАВАНИЕ',
     stats:{charm:5, speed:3, stoic:2},
     pal:{coat:'#d7457a', coat2:'#a83059', pants:'#2b2f52', shoe:'#20232f', skin:P.skinC, hair:'#8a4b2a', acc:'#ffd7e6'},
     head:'pony', beard:null,
     superName:'ФОТО ДЕТЕЙ В ТЕЛЕФОНЕ', superIcon:'photo',
     lines:['ВЫ ТАК АККУРАТНО СДАЛИ','ПОЕШЬТЕ, ВЫ ХУДЕНЬКИЙ','У ВАС ДОБРОЕ ЛИЦО'],
-    win:'ПРОЕЗЖАЙТЕ, ТОЛЬКО ПРИСТЕГНИТЕСЬ.' },
+    win:'Я ПЕРВАЯ, МАЛЬЧИКИ. ЖЕНЩИНАМ НАДО УСТУПАТЬ.' },
   { id:'stas', sex:'m', name:'СТАС', car:'ЗАНИЖЕННАЯ «ДЕВЯТКА»', bio:'САБВУФЕР ГРОМЧЕ ДВИГАТЕЛЯ',
     stats:{charm:2, speed:5, stoic:3},
     pal:{coat:'#24262f', coat2:'#15161c', pants:'#1b1d24', shoe:'#e8e8ee', skin:P.skinA, hair:'#17181e', acc:'#34dfff'},
     head:'capback', beard:null,
     superName:'СЕРЕНАДА ИЗ САБВУФЕРА', superIcon:'bass',
     lines:['РЕСПЕКТ ЗА ДИСКИ, БРАТ','ТАЧКА ОГОНЬ, ЧЕСТНО','ТЫ ПАРКУЕШЬСЯ КАК БОГ'],
-    win:'ВСЁ ПО-БРАТСКИ. ЗАПРАВЛЯЙСЯ ВТОРЫМ.' },
+    win:'К КОЛОНКЕ ПЕРВЫМ ЕДУ Я. ТЫ ВТОРЫМ, БЕЗ ОБИД.' },
   { id:'petrovich', sex:'m', name:'ПЕТРОВИЧ', car:'ФУРА НА 20 ТОНН', bio:'ЗА РУЛЁМ 14 ЧАСОВ, ДОБРЕЕ ВСЕХ',
     stats:{charm:4, speed:1, stoic:5},
     pal:{coat:'#8f3a2f', coat2:'#6a2a22', pants:'#3a4e7a', shoe:'#2a2118', skin:P.skinB, hair:'#8d8577', acc:'#c9b18a'},
     head:'bald', beard:'full',
     superName:'ТЕРМОС С ЧАЕМ', superIcon:'thermos',
     lines:['ДЕРЖИСЬ, СЫНОК','ТЫ ДОЕДЕШЬ, Я ВЕРЮ','ХОРОШИЙ ТЫ ЧЕЛОВЕК'],
-    win:'ДО ДОМА ДОЕДЕШЬ. Я ПОДОЖДУ.' },
+    win:'СПАСИБО, ЧТО УСТУПИЛ. МЕНЯ НА ЗАВОДЕ ЖДУТ.' },
   { id:'lena', sex:'f', name:'ЛЕНА', car:'КУРЬЕРСКИЙ ФУРГОН', bio:'42 ЗАКАЗА ЗА СМЕНУ, УЛЫБКА НА МЕСТЕ',
     stats:{charm:5, speed:4, stoic:1},
     pal:{coat:'#2fae7a', coat2:'#1e7d57', pants:'#24303f', shoe:'#1a1f28', skin:P.skinC, hair:'#4a2f22', acc:'#ffc93c'},
     head:'beanie', beard:null,
     superName:'КОТИК В ПЕРЕНОСКЕ', superIcon:'cat',
     lines:['ВАШ ЗАКАЗ — ХОРОШИЙ ДЕНЬ','У ВАС КЛАССНЫЙ СМЕХ','ВЫ СЕГОДНЯ СИЯЕТЕ'],
-    win:'ДОСТАВКА СЧАСТЬЯ. РОСПИСЬ НЕ НУЖНА.' },
+    win:'СПАСИБО, ЧТО ПРОПУСТИЛИ! УСПЕЮ ДОСТАВИТЬ ЗАКАЗЫ.' },
   { id:'bot', sex:'x', name:'ИИ-ПИЛОТ', car:'БЕСПИЛОТНИК', bio:'ПРИЕХАЛ ЗАПРАВИТЬСЯ ПО ОШИБКЕ',
     stats:{charm:3, speed:4, stoic:4},
     pal:{coat:'#aab6cc', coat2:'#7d8aa2', pants:'#4a5568', shoe:'#2c3444', skin:'#c9d6e8', hair:'#34dfff', acc:'#34dfff'},
     head:'antenna', beard:null,
     superName:'ПЕРСОНАЛЬНАЯ РЕКОМЕНДАЦИЯ', superIcon:'chip',
     lines:['ВЫ В ТОП-1% ВОДИТЕЛЕЙ','ВАШ СТИЛЬ ЕЗДЫ ИЗЯЩЕН','АНАЛИЗ: ВЫ ПРЕКРАСНЫ'],
-    win:'ВЕРОЯТНОСТЬ ВАШЕЙ УЛЫБКИ: 98%.' }
+    win:'ОЧЕРЕДЬ ОПТИМИЗИРОВАНА. ЗАПРАВЛЯЮСЬ Я.' }
 ];
 const STAGES = [
   { id:'blue', name:'СИНЯЯ АЗС', sub:'ПОЛДЕНЬ',
@@ -567,6 +577,18 @@ function seg(a,b,t,col){
 function limb(a,b,t,col,bendX=0,bendY=0){
   const mid = {x:(a.x+b.x)/2+bendX, y:(a.y+b.y)/2+bendY};
   seg(a,mid,t,col); seg(mid,b,t,col);
+}
+function speakerIcon(x, y, on){
+  const col = on ? '#4ade8a' : '#7a6a9a';
+  R(x, y+4, 3, 4, col);          // корпус
+  R(x+3, y+2, 2, 8, col);        // раструб
+  R(x+5, y, 2, 12, col);
+  if(on){                        // звуковые волны
+    R(x+9, y+3, 2, 6, col);
+    R(x+12, y+1, 2, 10, col);
+  } else {                       // перечёркнуто
+    for(let i=0;i<8;i++) R(x+8+i, y+1+i*1.2, 2, 2, '#ff5a5a');
+  }
 }
 function heartPath(x,y,s,col){
   ctx.fillStyle = col;
@@ -968,8 +990,15 @@ function drawStage(s, t){
   R(132,128,36,30, s.night ? '#ffe9a8' : '#bfe4f2');
   R(178,128,36,30, s.night ? '#ffe9a8' : '#bfe4f2');
   R(174,142,8,28, mix(s.accent2,'#000000',.1));
-  R(144,119,42,11, '#fff6e8');
-  text('КОФЕ', 152, 122, {scale:1, color:'#b4215a'});
+  // вывеска кофейни — рисунком, а не буквами: иначе путается с репликами героев
+  R(150,115,30,17, '#2e1c12');
+  R(150,115,30,2, s.accent);
+  R(150,131,30,1, 'rgba(0,0,0,.5)');
+  R(160,121,9,8, '#f0e4d8');                     // стаканчик
+  R(161,129,7,1, '#c9b6a8');
+  R(159,119,11,2, '#c9552f');                    // крышка
+  R(163,116,2,3, 'rgba(255,255,255,.5)');        // пар
+  R(166,115,2,4, 'rgba(255,255,255,.35)');
 
   // колонки
   for(const px of [268, 320]){
@@ -1072,7 +1101,7 @@ function makeFighter(charDef, side, isCPU){
     facing: side===0 ? 1 : -1,
     state:'idle', animT:0, stun:0, mood:0, meter:0,
     atk:null, onGround:true, wins:0, combo:0, comboT:0,
-    bubble:0, line:'', blockT:0, input:{}, ai:{timer:0, cmd:{}, mood:'approach'},
+    bubble:0, line:'', blockT:0, input:{}, ai:{cmd:{}, plan:null, cool:0},
     flashT:0, dealt:0
   };
 }
@@ -1085,16 +1114,15 @@ let game = {
   stage:STAGES[0], p1:null, p2:null,
   round:1, wins:[0,0], timer:60*60, phase:'intro', phaseT:0,
   shake:0, hitstop:0, flash:0, arcadeIdx:0,
-  banner:null, bannerT:0, roster:[], howNext:'title', rulesSeen:false
+  banner:null, bannerT:0, roster:[]
 };
-try{ game.rulesSeen = localStorage.getItem('umilyay_rules') === '1'; }catch(e){}
 
 function setBanner(str, sub, frames=90, col='#ffc93c'){
   game.banner = {str, sub, col}; game.bannerT = frames;
 }
 function startMatch(){
   game.p1 = makeFighter(FIGHTERS[game.sel1], 0, false);
-  game.p2 = makeFighter(FIGHTERS[game.sel2], 1, game.mode==='arcade');
+  game.p2 = makeFighter(FIGHTERS[game.sel2], 1, true);   // соперником всегда управляет компьютер
   game.round = 1; game.wins = [0,0];
   game.screen = 'vs'; game.phaseT = 0;
   MUS.reset();
@@ -1112,52 +1140,73 @@ function startRound(){
   SFX.bell();
 }
 function diffOf(){
-  const i = game.arcadeIdx;
-  return { react: [32,21,14][i]||14, block: [0.14,0.34,0.52][i]||0.52, aggr: [0.40,0.65,0.85][i]||0.85, jump: 0 };
+  const i = Math.min(game.arcadeIdx, 2);
+  return {
+    block: [0.18, 0.32, 0.48][i],   // охотно ли кланяется в ответ на замах
+    pause: [54, 34, 22][i],         // кадров между своими любезностями
+    smart: [0.5,  0.75, 0.95][i]    // как часто дарит именно то, что вам заходит
+  };
 }
 function aiThink(me, foe){
   const d = diffOf();
-  const cmd = me.ai.cmd;
-  for(const k in cmd) cmd[k] = false;
-  if(me.state==='ko' || me.state==='win' || game.phase!=='fight'){ return; }
+  const c = me.ai.cmd;
+  for(const k in c) c[k] = false;
+  if(me.state === 'ko' || me.state === 'win' || game.phase !== 'fight') return;
+
+  const ai = me.ai;
+  if(ai.cool > 0) ai.cool--;
   const dist = Math.abs(foe.x - me.x);
-  const dir = Math.sign(foe.x - me.x);
-  me.ai.timer--;
-  // реактивный блок
-  if(foe.state==='attack' && dist < 70 && Math.random() < d.block*0.35) me.ai.plan = {type:'block', t:16};
-  if(me.ai.plan && me.ai.plan.t>0){
-    me.ai.plan.t--;
-    const pl = me.ai.plan;
-    if(pl.type==='block'){ cmd.block = true; return; }
-    if(pl.type==='advance'){ if(dir>0) cmd.right=true; else cmd.left=true; return; }
-    if(pl.type==='retreat'){ if(dir>0) cmd.left=true; else cmd.right=true; return; }
-    if(pl.type==='wait'){ return; }
+  const dir = Math.sign(foe.x - me.x) || 1;
+  const fwd = dir > 0 ? 'right' : 'left';
+  const back = dir > 0 ? 'left' : 'right';
+
+  // начатый манёвр доигрываем до конца, иначе движения выглядят дёргаными
+  if(ai.plan){
+    ai.plan.t--;
+    if(ai.plan.t > 0){
+      if(ai.plan.type === 'block'){ c.block = true; return; }
+      if(ai.plan.type === 'back'){ c[back] = true; return; }
+    } else ai.plan = null;
   }
-  if(me.ai.timer > 0) return;
-  me.ai.timer = 4 + Math.random()*d.react*0.5;
-  const r = Math.random();
-  if(me.meter >= 100 && dist < 70 && r < 0.65){ cmd.s = true; return; }
-  const likesFlowers = foe.char.sex === 'f';
-  if(dist < 58){
-    if(r < 0.34*d.aggr) cmd.l = true;
-    else if(r < 0.6*d.aggr){ if(likesFlowers) cmd.m = true; else cmd.h = true; }
-    else if(r < 0.75) me.ai.plan = {type:'block', t:18+Math.random()*16};
-    else me.ai.plan = {type:'retreat', t:14+Math.random()*14};
-  } else if(dist < 110){
-    if(r < 0.35*d.aggr) me.ai.plan = {type:'advance', t:12+Math.random()*14};
-    else if(r < 0.6) cmd.h = true;
-    else if(r < 0.72*d.aggr) me.ai.plan = {type:'advance', t:20};
-    else me.ai.plan = {type:'wait', t:10+Math.random()*14};
-  } else {
-    if(r < 0.55) me.ai.plan = {type:'advance', t:20+Math.random()*20};
-    else if(r < 0.8) cmd.h = true;
-    else me.ai.plan = {type:'wait', t:12};
+
+  // поклон — только как ответ на чужой замах, а не просто так
+  if(foe.state === 'attack' && dist < 74 && Math.random() < d.block){
+    ai.plan = { type:'block', t: 12 + Math.random()*12 };
+    c.block = true;
+    return;
   }
+
+  // своя очередь дарить
+  if(ai.cool <= 0){
+    if(me.meter >= 100 && dist < 70){ c.s = true; ai.cool = 50; return; }
+
+    if(dist < 58){
+      const favourite = foe.char.sex === 'f' ? 'm' : 'h';   // букет женщинам, шоколад мужчинам
+      const r = Math.random();
+      if(r < 0.42) c.l = true;                              // быстрый комплимент
+      else if(Math.random() < d.smart) c[favourite] = true;  // то, что заходит сопернику
+      else c[Math.random() < 0.5 ? 'm' : 'h'] = true;
+      // иногда соперник просто засматривается — новичку нужен воздух
+      ai.cool = d.pause * (Math.random() < d.smart ? 1 : 1.6) + Math.random() * d.pause * 0.6;
+      return;
+    }
+
+    if(dist < 130 && Math.random() < 0.3){                  // шоколадка через всю площадку
+      c.h = true;
+      ai.cool = d.pause * 1.5;
+      return;
+    }
+  }
+
+  // держим дистанцию, с которой можно дарить
+  if(dist > 50) c[fwd] = true;
+  else if(dist < 32) c[back] = true;
+  else if(Math.random() < 0.01) ai.plan = { type:'back', t: 8 + Math.random()*8 };
 }
 function readInput(f){
   const i = f.input;
   for(const k in i) i[k] = false;
-  if(f.cpu){
+  if(f.cpu || f.side !== 0){
     const c = f.ai.cmd;
     i.left=c.left; i.right=c.right; i.up=c.up; i.block=c.block;
     i.l=c.l; i.m=c.m; i.h=c.h; i.s=c.s;
@@ -1245,6 +1294,7 @@ function applyHit(att, def, m, fromProj){
   if(def.mood >= 100 && def.state!=='ko') knockOut(def, att);
 }
 function knockOut(loser, winner){
+  game.koWinner = winner.side;
   loser.state='ko'; loser.animT=0; loser.stun=0; loser.vx=0; loser.bubble=0;
   winner.state='win'; winner.animT=0; winner.atk=null;
   game.phase='ko'; game.phaseT=0;
@@ -1254,7 +1304,10 @@ function knockOut(loser, winner){
   TG.haptic('heavy');
   TG.notify(winner.side===0 ? 'success' : 'error');
   spawnHearts(loser.x, loser.y-50, 26);
-  setBanner('УМИЛИТИ!', '', 150, '#ff3d7f');
+  const playerWon = winner.side === 0;
+  setBanner(loser.char.name + ' РАСТАЯЛ',
+            playerWon ? 'ВАС ПРОПУСКАЮТ К КОЛОНКЕ' : 'ОЧЕРЕДЬ УЕХАЛА БЕЗ ВАС',
+            150, playerWon ? '#4ade8a' : '#ff5a5a');
 }
 function updateFighter(f, foe){
   f.animT++;
@@ -1414,7 +1467,7 @@ function drawBanner(){
   const life = game.bannerT;
   const t0 = Math.min(1, (1 - life/150) * 6);
   const sc = 3;
-  const y = 96;
+  const y = 74;
   const wob = Math.sin(game.t*0.2)*2;
   text(b.str, W/2, y + wob, {align:'center', scale:sc, color:b.col, outline:'#3a0a24', shadow:'rgba(0,0,0,.5)', shadowDist:3});
   if(b.sub) text(b.sub, W/2, y+30, {align:'center', scale:1, color:'#fff0f6', outline:'#3a0a24'});
@@ -1448,64 +1501,18 @@ function screenTitle(){
     text('НАЖМИ НА ЭКРАН', W/2, 200, {align:'center', scale:2, color:'#fff6fb', outline:'#3a0a24'});
 
   // две маленькие кнопки в углу: правила и звук
-  const bw = 24, by = H-30;
-  R(14, by, bw, 20, 'rgba(20,11,38,.85)'); R(14, by, bw, 2, '#3a2a5e');
-  text('?', 14+bw/2, by+7, {align:'center', scale:2, color:'#c9b6e8'});
-  R(W-14-bw, by, bw, 20, 'rgba(20,11,38,.85)'); R(W-14-bw, by, bw, 2, '#3a2a5e');
-  text(musicOn ? '*' : '-', W-14-bw/2, by+7, {align:'center', scale:2, color: musicOn ? '#4ade8a' : '#6f5f96'});
+  const bw = 30, by = H-32;
+  R(W-14-bw, by, bw, 22, 'rgba(20,11,38,.88)');
+  R(W-14-bw, by, bw, 2, musicOn ? '#4ade8a' : '#3a2a5e');
+  speakerIcon(W-14-bw+7, by+5, musicOn);
 
   MUS.tick('menu');
 
-  if(tapIn(8, by-6, bw+14, 32)){ SFX.pick(); game.howNext = 'title'; game.screen='how'; return; }
-  if(tapIn(W-22-bw, by-6, bw+14, 32)){ musicOn = !musicOn; MUS.reset(); SFX.pick(); return; }
-  if(anyPressed(['KeyH'])){ SFX.pick(); game.howNext = 'title'; game.screen='how'; return; }
-
+  if(tapIn(W-22-bw, by-8, bw+16, 36)){ musicOn = !musicOn; MUS.reset(); SFX.pick(); return; }
   if(anyPressed(CONFIRM) || anyTap()){
     SFX.pick();
-    if(!game.rulesSeen){          // новичку показываем правила один раз
-      game.rulesSeen = true;
-      try{ localStorage.setItem('umilyay_rules', '1'); }catch(e){}
-      game.howNext = 'select';
-      game.screen = 'how';
-    } else {
-      game.arcadeIdx = 0; game.sel1 = 0;
-      game.screen = 'select'; game.selWho = 0;
-    }
-  }
-}
-function screenHow(){
-  R(0,0,W,H,'#140b24');
-  for(let i=0;i<30;i++) R((i*79)%W, (i*47)%H, 1, 1, 'rgba(255,61,127,.25)');
-  text('КАК ИГРАТЬ', 24, 18, {scale:2, color:'#ffc93c', outline:'#4a2a00'});
-  R(24, 36, W-48, 1, '#3a2a5e');
-  const lines = [
-    ['#fff6fb','У КОЛОНКИ ОДНА ОЧЕРЕДЬ. НО БИТЬ ЗДЕСЬ НЕЛЬЗЯ.'],
-    ['#c9b6e8','ЗАПОЛНИТЕ ШКАЛУ УМИЛЕНИЯ СОПЕРНИКА — И ОН РАСТАЕТ.'],
-    ['',''],
-    ['#34dfff','ЛЕВАЯ РУКА ХОДИТ, ПРАВАЯ ДАРИТ'],
-    ['#fff6fb','A D — ШАГИ,  W — ПРЫЖОК,  S — ПОКЛОН'],
-    ['#fff6fb','< КОМПЛИМЕНТ   V БУКЕТ   > ШОКОЛАДКА   ^ СУПЕР'],
-    ['#9b8ac2','КНОПКИ НА ЭКРАНЕ СТОЯТ ТАК ЖЕ, КАК ЭТИ СТРЕЛКИ'],
-    ['',''],
-    ['#ffc93c','КОМУ ЧТО ЗАХОДИТ'],
-    ['#fff6fb','БУКЕТ СИЛЬНЕЕ ДЕЙСТВУЕТ НА ЖЕНЩИН, ШОКОЛАД — НА МУЖЧИН'],
-    ['#fff6fb','КОМПЛИМЕНТ РАБОТАЕТ НА ВСЕХ И ХОРОШ В СЕРИИ ПОДРЯД'],
-    ['#4ade8a','ПОКЛОН ПОЛНОСТЬЮ ГАСИТ ЛЮБЕЗНОСТЬ И ВОЗВРАЩАЕТ ЧАСТЬ'],
-    ['#4ade8a','ЕЁ ОТПРАВИТЕЛЮ. НО ДОЛГО КЛАНЯТЬСЯ — СПИНА УСТАЁТ.'],
-    ['',''],
-    ['#4ade8a','ДВА РАУНДА ИЗ ТРЁХ — И БАК ВАШ.']
-  ];
-  lines.forEach((l,i)=>{ if(l[1]) text(l[1], 24, 46 + i*14, {scale:1, color:l[0]}); });
-  text(game.howNext === 'select' ? 'НАЖМИТЕ НА ЭКРАН — ВЫБРАТЬ ВОДИТЕЛЯ'
-                                 : 'НАЖМИТЕ НА ЭКРАН, ЧТОБЫ ВЕРНУТЬСЯ',
-       W/2, 246, {align:'center', scale:1, color:'#9b8ac2'});
-  MUS.tick('menu');
-  if(anyPressed(CONFIRM) || anyPressed(BACKK) || anyTap()){
-    SFX.pick();
-    if(game.howNext === 'select'){
-      game.arcadeIdx = 0; game.sel1 = 0; game.selWho = 0;
-      game.screen = 'select';
-    } else game.screen = 'title';
+    game.arcadeIdx = 0; game.sel1 = 0;
+    game.screen = 'select'; game.selWho = 0;
   }
 }
 function portrait(charDef, x, y, w, h, t, sel){
@@ -1582,7 +1589,7 @@ function screenSelect(){
   R(px+10, 132, W-px-38, 1, '#3a2a5e');
   text('СУПЕР-ПРИЁМ', px+10, 140, {scale:1, color:'#6f5f96'});
   wrapText(c.superName, px+10, 152, W-px-38, 1, '#ffc93c', 2);
-  wrapText('«' + c.win + '»', px+10, 172, W-px-38, 1, '#c9b6e8', 2);
+  wrapText('«' + c.win + '»', px+10, 170, W-px-38, 1, '#c9b6e8', 2);
   const btnY = 198, btnH = 20;
   R(px+10, btnY, W-px-38, btnH, '#ff3d7f');
   R(px+10, btnY, W-px-38, 3, '#ff8fb4');
@@ -1679,11 +1686,13 @@ function screenFight(){
       updateFighter(a,b); updateFighter(b,a);
       updateProjectiles();
       if(game.phaseT === 60){
-        const w = game.wins[0] >= 1 ? a : (game.wins[1] >= 1 ? b : null);
-        if(w){
-          setBanner('УМИЛИТИ!', w.char.win, 140, '#ff3d7f');
-          spawnHearts(w.x, w.y-60, 20);
-        }
+        const playerWon = game.wins[0] >= 1;
+        const w = playerWon ? a : b;
+        setBanner(playerWon ? 'ВЫ ПРОХОДИТЕ' : 'ВАС ОБОШЛИ',
+                  playerWon ? 'СОПЕРНИК РАСТАЯЛ И УСТУПИЛ ОЧЕРЕДЬ'
+                            : 'ВЫ РАСТАЯЛИ И ПРОПУСТИЛИ СОПЕРНИКА',
+                  140, playerWon ? '#4ade8a' : '#ff5a5a');
+        spawnHearts(w.x, w.y-60, 20);
       }
       if(game.phaseT > 170) endMatch();
     }
@@ -1710,6 +1719,26 @@ function screenFight(){
   }
   const order = a.y <= b.y ? [a,b] : [b,a];
   drawFighter(order[0], game.t); drawFighter(order[1], game.t);
+  // кто растаял, а кто едет заправляться — подписываем прямо над головами
+  if(game.phase === 'ko' && game.phaseT > 18){
+    for(const f of [a,b]){
+      if(f.state === 'ko'){
+        R(f.x-34, f.y-96, 68, 13, 'rgba(180,33,90,.92)');
+        text('РАСТАЯЛ', f.x, f.y-92, {align:'center', scale:1, color:'#fff0f6'});
+        ctx.fillStyle = 'rgba(255,61,127,.12)';
+        ctx.fillRect(Math.round(f.x-30), GROUND-72, 60, 72);
+      } else if(f.state === 'win'){
+        const mine = f.side === 0;
+        R(f.x-40, f.y-110, 80, 13, mine ? 'rgba(47,174,122,.94)' : 'rgba(150,60,95,.94)');
+        text(mine ? 'ВЫ ПРОХОДИТЕ' : 'ПРОХОДИТ ОН', f.x, f.y-106,
+             {align:'center', scale:1, color:'#ffffff'});
+        for(let i=0;i<3;i++){        // огоньки вверх — победитель едет к колонке
+          const yy = f.y-92 + ((game.t*0.6 + i*8) % 14);
+          R(f.x-1, yy, 3, 3, mine ? '#4ade8a' : '#e0a0bc');
+        }
+      }
+    }
+  }
   for(const p of projectiles) propChoco(p.x, p.y, p.rot);
   drawParticles();
   ctx.restore();
@@ -1750,8 +1779,8 @@ function screenResult(){
   ctx.fillStyle='rgba(10,4,20,.6)'; ctx.fillRect(0,0,W,H);
 
   text('ВАС РАСТОПИЛИ', W/2, 44, {align:'center', scale:3, color:'#ff3d7f', outline:'#3a0a24'});
-  wrapText('«' + b.char.win + '»', W/2 - 150, 88, 300, 1, '#ffd7e6', 2);
-  text('ОЧЕРЕДЬ ДВИНУЛАСЬ БЕЗ ВАС', W/2, 112, {align:'center', scale:1, color:'#c9b6e8'});
+  text(b.char.name + ' ЕДЕТ К КОЛОНКЕ И ГОВОРИТ:', W/2, 84, {align:'center', scale:1, color:'#9b8ac2'});
+  wrapText('«' + b.char.win + '»', W/2 - 150, 98, 300, 1, '#ffd7e6', 2);
 
   const bw = 200, bx = W/2 - bw/2, by = 168;
   R(bx, by, bw, 24, '#2fae7a'); R(bx, by, bw, 3, '#6fe0ad');
@@ -1803,7 +1832,6 @@ function frame(){
   ctx.fillStyle = '#06040c'; ctx.fillRect(0,0,W,H);
   switch(game.screen){
     case 'title': screenTitle(); break;
-    case 'how': screenHow(); break;
     case 'select': screenSelect(); break;
     case 'vs': screenVS(); break;
     case 'fight': screenFight(); break;
