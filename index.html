@@ -2,6 +2,9 @@
 <title>Умиляй и заправляй в Telegram</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0a0613">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root{
@@ -87,7 +90,7 @@
 
   <div class="gp" id="padL">
     <button class="dirbtn" data-k="KeyA" aria-label="Назад"><span class="ico">◀</span></button>
-    <button class="bow" data-k="KeyS" aria-label="Поклон"><span class="ico">▼</span><i>ПОКЛОН</i></button>
+    <button class="bow" data-k="KeyS" aria-label="Поклон"><span class="ico">▼</span></button>
     <button class="dirbtn" data-k="KeyD" aria-label="Вперёд"><span class="ico">▶</span></button>
   </div>
 
@@ -421,16 +424,16 @@ const FIGHTERS = [
     win:'ВЕРОЯТНОСТЬ ВАШЕЙ УЛЫБКИ: 98%.' }
 ];
 const STAGES = [
-  { id:'blue', name:'СИНЯЯ АЗС', sub:'«СИНЕВА» · ПОЛДЕНЬ',
+  { id:'blue', name:'СИНЯЯ АЗС', sub:'ПОЛДЕНЬ',
     sky:['#6fc7f5','#bfe8ff'], accent:'#2f6fd0', accent2:'#1b4a94', ground:'#4a4f63', ground2:'#3a3e4f',
     far:'#8aa6c8', sun:'#fff4c2', night:false },
-  { id:'yellow', name:'ЖЁЛТАЯ АЗС', sub:'«ЗОЛОТАЯ КАПЛЯ» · ЗАКАТ',
+  { id:'yellow', name:'ЖЁЛТАЯ АЗС', sub:'ЗАКАТ',
     sky:['#ff8a4c','#ffd98a'], accent:'#ffc93c', accent2:'#d1922a', ground:'#4f4438', ground2:'#3d342a',
     far:'#7a5a6e', sun:'#fff0b0', night:false },
-  { id:'red', name:'КРАСНАЯ АЗС', sub:'«ОГОНЁК» · НОЧЬ',
+  { id:'red', name:'КРАСНАЯ АЗС', sub:'НОЧЬ',
     sky:['#17132e','#3b1f4d'], accent:'#e23b4c', accent2:'#8e1b2c', ground:'#2a2636', ground2:'#1e1b28',
     far:'#2b2446', sun:'#f2f0ff', night:true },
-  { id:'green', name:'ЗЕЛЁНАЯ АЗС', sub:'«ЛИСТОК» · РАННЕЕ УТРО',
+  { id:'green', name:'ЗЕЛЁНАЯ АЗС', sub:'РАННЕЕ УТРО',
     sky:['#9fd8c0','#e8f4d8'], accent:'#3fae6a', accent2:'#25774a', ground:'#4b5548', ground2:'#3a4339',
     far:'#6f9a7d', sun:'#ffffff', night:false }
 ];
@@ -751,6 +754,7 @@ function poseFor(f, t){
     p.face='smile';
   } else if(st==='block'){
     // вежливый поклон: корпус вперёд, рука к сердцу, вторая отведена назад
+    if(f.blockT === 1){ f.line = 'ПОКЛОН'; f.bubble = 26; }
     const d = Math.min(1, f.animT/7);
     p.bob = 4*d;
     p.hip = {x:-3*d, y:-28};
@@ -1085,7 +1089,7 @@ function makeFighter(charDef, side, isCPU){
     facing: side===0 ? 1 : -1,
     state:'idle', animT:0, stun:0, mood:0, meter:0,
     atk:null, onGround:true, wins:0, combo:0, comboT:0,
-    bubble:0, line:'', input:{}, ai:{timer:0, cmd:{}, mood:'approach'},
+    bubble:0, line:'', blockT:0, input:{}, ai:{timer:0, cmd:{}, mood:'approach'},
     flashT:0, dealt:0
   };
 }
@@ -1215,13 +1219,24 @@ function applyHit(att, def, m, fromProj){
   const aff = (AFFINITY[m.key] || {})[def.char.sex] ?? 1;
   let dmg = m.dmg * charmMul(att) * stoicMul(def) * aff;
   if(blocked){
-    dmg *= 0.16;
-    def.meter = Math.min(100, def.meter + 9);
-    att.meter = Math.min(100, att.meter + m.meter*0.5);
-    def.vx = 1.0 * att.facing;
+    // свежий поклон держит удар полностью и возвращает часть любезности отправителю
+    const fresh = def.blockT < 96;
+    const reflected = fresh ? dmg * 0.32 : 0;
+    dmg = fresh ? 0 : dmg * 0.45;
+    def.meter = Math.min(100, def.meter + (fresh ? 13 : 7));
+    att.meter = Math.min(100, att.meter + m.meter*0.4);
+    def.vx = 0.7 * att.facing;
     SFX.block(); TG.haptic('rigid');
-    spawnSparks(def.x - def.facing*14, def.y-48, 7, '#cfd6e8');
-    floatText('ВЕЖЛИВЫЙ ПОКЛОН', def.x, def.y-92, '#9fd8ff', 1);
+    spawnSparks(def.x - def.facing*14, def.y-48, 8, fresh ? '#8fe9ff' : '#cfd6e8');
+    if(fresh){
+      floatText('ОТРАЖЕНО!', def.x, def.y-92, '#8fe9ff', 1);
+      att.mood = Math.min(100, att.mood + reflected);
+      spawnHearts(att.x, att.y-54, 3, '#8fe9ff');
+      floatText('+' + Math.round(reflected), att.x, att.y-88, '#8fe9ff', 1);
+      if(att.mood >= 100 && att.state !== 'ko') knockOut(att, def);
+    } else {
+      floatText('СПИНА УСТАЛА', def.x, def.y-92, '#ffc93c', 1);
+    }
     game.shake = 2;
   } else {
     def.state='hit'; def.animT=0;
@@ -1307,14 +1322,16 @@ function updateFighter(f, foe){
     if(!f.onGround){
       f.state = 'jump';
     } else if(i.block){
-      f.state = 'block'; f.vx = 0;
+      if(f.state !== 'block') f.blockT = 0;
+      f.state = 'block'; f.vx = 0; f.blockT++;
     } else if(i.left || i.right){
+      f.blockT = 0;
       const sp = speedOf(f);
       const dir = i.left ? -1 : 1;
       f.vx = dir * sp * (dir === f.facing ? 1 : 0.78);
       f.state = 'walk';
     } else {
-      f.vx = 0; f.state = 'idle';
+      f.vx = 0; f.state = 'idle'; f.blockT = 0;
     }
     if(i.up && f.onGround){ f.vy = -8.6; f.onGround = false; f.state='jump'; beep(600,.09,'square',.03,400); }
     if(f.onGround){
@@ -1461,9 +1478,9 @@ function screenTitle(){
   text('БОЙ ЗА БЕНЗИН БЕЗ ЕДИНОГО УДАРА', W/2, y + 74, {align:'center', scale:1, color:'#e8dcff'});
   if(Math.floor(game.t/28)%2===0)
     text('НАЖМИ НА ЭКРАН', W/2, 196, {align:'center', scale:2, color:'#fff6fb', outline:'#3a0a24'});
-  text('РЕКОРД ' + String(game.best).padStart(6,'0'), W/2, 226, {align:'center', scale:1, color:'#9b8ac2'});
-  text(TG.name ? 'ЗА РУЛЁМ: ' + TG.name : '1986 · АВТОМАТ У КОЛОНКИ 4', W/2, 244,
-       {align:'center', scale:1, color:'#6f5f96'});
+  if(game.best > 0)
+    text('РЕКОРД ' + String(game.best).padStart(6,'0'), W/2, 232,
+         {align:'center', scale:1, color:'#9b8ac2'});
   MUS.tick('menu');
   if(anyPressed(CONFIRM) || anyTap()){ SFX.pick(); game.screen='menu'; game.menuSel=0; }
 }
@@ -1521,7 +1538,8 @@ function screenHow(){
     ['#ffc93c','КОМУ ЧТО ЗАХОДИТ'],
     ['#fff6fb','БУКЕТ СИЛЬНЕЕ ДЕЙСТВУЕТ НА ЖЕНЩИН, ШОКОЛАД — НА МУЖЧИН'],
     ['#fff6fb','КОМПЛИМЕНТ РАБОТАЕТ НА ВСЕХ И ХОРОШ В СЕРИИ ПОДРЯД'],
-    ['#4ade8a','ПОКЛОН ГАСИТ ЧУЖУЮ ЛЮБЕЗНОСТЬ И КОПИТ ОБАЯНИЕ'],
+    ['#4ade8a','ПОКЛОН ПОЛНОСТЬЮ ГАСИТ ЛЮБЕЗНОСТЬ И ВОЗВРАЩАЕТ ЧАСТЬ'],
+    ['#4ade8a','ЕЁ ОТПРАВИТЕЛЮ. НО ДОЛГО КЛАНЯТЬСЯ — СПИНА УСТАЁТ.'],
     ['',''],
     ['#4ade8a','ДВА РАУНДА ИЗ ТРЁХ — И БАК ВАШ.']
   ];
@@ -1668,8 +1686,7 @@ function screenStage(){
     const col = i%2, row = Math.floor(i/2);
     const x = 20 + col*(cw+20), y = 42 + row*(ch+34);
     miniStage(s, x, y, cw, ch, game.t + i*40, i===game.stageSel);
-    text(s.name, x+4, y+ch+4, {scale:1, color: i===game.stageSel ? '#fff6fb':'#a894d0'});
-    text(s.sub, x+4, y+ch+14, {scale:1, color: i===game.stageSel ? '#ffc93c':'#6f5f96'});
+    text(s.name, x+4, y+ch+5, {scale:1, color: i===game.stageSel ? '#fff6fb':'#a894d0'});
   });
   text('НАЖМИТЕ НА ЛОКАЦИЮ', W/2, 250, {align:'center', scale:1, color:'#9b8ac2'});
   MUS.tick('menu');
@@ -1706,7 +1723,7 @@ function screenVS(){
   text(b.char.name, W-16, 190, {scale:2, color:'#fff6fb', outline:'#3a0a24', align:'right'});
   text(b.char.car, W-16, 208, {scale:1, color:'#ffc93c', align:'right'});
   text('ПРОТИВ', W/2, 112 + wob, {align:'center', scale:4, color:'#ff3d7f', outline:'#3a0a24', shadow:'rgba(0,0,0,.5)', shadowDist:3});
-  text(s.name + ' · ' + s.sub, W/2, 150, {align:'center', scale:1, color:'#e8dcff'});
+  text(s.name, W/2, 150, {align:'center', scale:1, color:'#e8dcff'});
   if(game.mode==='arcade') text('СОПЕРНИК ' + (game.arcadeIdx+1) + ' ИЗ 3', W/2, 20, {align:'center', scale:1, color:'#9b8ac2'});
   MUS.tick('fight');
   if(t > 120 || anyPressed(CONFIRM) || anyTap()){ game.screen='fight'; startRound(); }
