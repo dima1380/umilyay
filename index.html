@@ -346,23 +346,6 @@ const TG = (function(){
     backShown: false,
     haptic(kind){ try{ this.api.HapticFeedback.impactOccurred(kind); }catch(e){} },
     notify(kind){ try{ this.api.HapticFeedback.notificationOccurred(kind); }catch(e){} },
-    loadBest(cb){
-      let local = 0;
-      try{ local = parseInt(localStorage.getItem('umilyay_best')||'0',10)||0; }catch(e){}
-      cb(local);
-      try{
-        this.api.CloudStorage.getItem('best', (err,val)=>{
-          if(!err && val) cb(parseInt(val,10)||0);
-        });
-      }catch(e){}
-    },
-    saveBest(v){
-      try{ localStorage.setItem('umilyay_best', String(v)); }catch(e){}
-      try{ this.api.CloudStorage.setItem('best', String(v)); }catch(e){}
-    },
-    send(obj){
-      try{ this.api.sendData(JSON.stringify(obj)); return true; }catch(e){ return false; }
-    },
     syncBack(show){
       if(!this.api || !this.api.BackButton) return;
       if(show === this.backShown) return;
@@ -1098,14 +1081,13 @@ function stoicMul(f){ return 1.22 - f.char.stats.stoic*0.062; }
 function speedOf(f){ return 1.05 + f.char.stats.speed*0.2; }
 
 let game = {
-  screen:'title', t:0, sel1:0, sel2:1, stageSel:0, menuSel:0,
-  mode:'arcade', stage:STAGES[0], p1:null, p2:null,
+  screen:'title', t:0, sel1:0, sel2:1, stageStart:0, selWho:0,
+  stage:STAGES[0], p1:null, p2:null,
   round:1, wins:[0,0], timer:60*60, phase:'intro', phaseT:0,
-  shake:0, hitstop:0, flash:0, arcadeIdx:0, score:0,
-  contTimer:0, banner:null, bannerT:0, rouletteT:0, best:0,
-  slow:0
+  shake:0, hitstop:0, flash:0, arcadeIdx:0,
+  banner:null, bannerT:0, roster:[], howNext:'title', rulesSeen:false
 };
-TG.loadBest(v=>{ if(v > game.best) game.best = v; });
+try{ game.rulesSeen = localStorage.getItem('umilyay_rules') === '1'; }catch(e){}
 
 function setBanner(str, sub, frames=90, col='#ffc93c'){
   game.banner = {str, sub, col}; game.bannerT = frames;
@@ -1127,12 +1109,11 @@ function startRound(){
   a.meter = Math.min(a.meter, 50); b.meter = Math.min(b.meter, 50);
   game.timer = 60*60; game.phase='intro'; game.phaseT=0;
   particles = [];
-  setBanner('РАУНД ' + game.round, '', 80);
   SFX.bell();
 }
 function diffOf(){
   const i = game.arcadeIdx;
-  return { react: [26,19,13][i]||12, block: [0.22,0.38,0.55][i]||0.55, aggr: [0.55,0.7,0.85][i]||0.85, jump: [0.05,0.09,0.13][i]||0.13 };
+  return { react: [32,21,14][i]||14, block: [0.14,0.34,0.52][i]||0.52, aggr: [0.40,0.65,0.85][i]||0.85, jump: 0 };
 }
 function aiThink(me, foe){
   const d = diffOf();
@@ -1187,7 +1168,6 @@ function readInput(f){
   // левая рука ходит (WASD), правая дарит (стрелки, дубль на JKLI)
   i.left  = keys['KeyA'];
   i.right = keys['KeyD'];
-  i.up    = keys['KeyW'];
   i.block = keys['KeyS'];
   i.l = pressed['ArrowLeft']  || pressed['KeyJ'];
   i.m = pressed['ArrowDown']  || pressed['KeyK'];
@@ -1262,7 +1242,6 @@ function applyHit(att, def, m, fromProj){
   }
   def.mood = Math.min(100, def.mood + dmg);
   att.dealt += dmg;
-  game.score += Math.round(dmg * 10);
   if(def.mood >= 100 && def.state!=='ko') knockOut(def, att);
 }
 function knockOut(loser, winner){
@@ -1275,9 +1254,7 @@ function knockOut(loser, winner){
   TG.haptic('heavy');
   TG.notify(winner.side===0 ? 'success' : 'error');
   spawnHearts(loser.x, loser.y-50, 26);
-  const matchOver = game.wins[winner.side] >= 2;
-  setBanner(matchOver ? 'УМИЛИТИ!' : 'РАСТАЯЛ!', matchOver ? '' : '', 150, matchOver ? '#ff3d7f' : '#ffc93c');
-  game.score += 1000 + Math.round(game.timer/60)*15 + (winner.mood===0 ? 1500 : 0);
+  setBanner('УМИЛИТИ!', '', 150, '#ff3d7f');
 }
 function updateFighter(f, foe){
   f.animT++;
@@ -1333,7 +1310,6 @@ function updateFighter(f, foe){
     } else {
       f.vx = 0; f.state = 'idle'; f.blockT = 0;
     }
-    if(i.up && f.onGround){ f.vy = -8.6; f.onGround = false; f.state='jump'; beep(600,.09,'square',.03,400); }
     if(f.onGround){
       if(i.s) tryAttack(f,'super',foe);
       else if(i.l) tryAttack(f,'light',foe);
@@ -1392,14 +1368,8 @@ function drawMoodBar(f, side){
     for(let i=1;i<8;i++){ const sx = x + i*w/8; if(sx>=fx && sx<=fx+fill) R(sx, y, 1, h, 'rgba(0,0,0,.25)'); }
   }
   R(x,y,w,1,'rgba(255,255,255,.25)');
-  // имя и выигранные раунды в одну строку
   text(f.char.name, side===0 ? x : x+w, 2,
        {scale:1, color:'#fff6fb', align: side===0?'left':'right', shadow:'#4a1030'});
-  for(let i=0;i<2;i++){
-    const hx = side===0 ? x + w - 6 - i*11 : x + 6 + i*11;
-    if(game.wins[side] > i) heartPath(hx, 6, 1, '#ff3d7f');
-    else { ctx.fillStyle='#3d2a52'; ctx.fillRect(hx-4,3,8,7); }
-  }
 }
 function drawMeter(f, side){
   const w = 150, h = 5, y = 27;
@@ -1428,8 +1398,6 @@ function drawHUD(){
   R(W/2-19, 6, 38, 20, '#2c1c3e');
   text(String(secs).padStart(2,'0'), W/2, 10, {align:'center', scale:2,
        color: secs<=10 ? '#ff5a5a' : '#ffe9a8'});
-  text('ОЧКИ ' + String(game.score).padStart(6,'0'), W/2, 31,
-       {align:'center', scale:1, color:'#9b8ac2'});
   // серия
   for(const f of [a,b]){
     if(f.combo >= 2 && f.comboT > 0){
@@ -1477,48 +1445,32 @@ function screenTitle(){
   heartPath(W/2 + 172, y + 46, 3, '#34dfff');
   text('БОЙ ЗА БЕНЗИН БЕЗ ЕДИНОГО УДАРА', W/2, y + 74, {align:'center', scale:1, color:'#e8dcff'});
   if(Math.floor(game.t/28)%2===0)
-    text('НАЖМИ НА ЭКРАН', W/2, 196, {align:'center', scale:2, color:'#fff6fb', outline:'#3a0a24'});
-  if(game.best > 0)
-    text('РЕКОРД ' + String(game.best).padStart(6,'0'), W/2, 232,
-         {align:'center', scale:1, color:'#9b8ac2'});
+    text('НАЖМИ НА ЭКРАН', W/2, 200, {align:'center', scale:2, color:'#fff6fb', outline:'#3a0a24'});
+
+  // две маленькие кнопки в углу: правила и звук
+  const bw = 24, by = H-30;
+  R(14, by, bw, 20, 'rgba(20,11,38,.85)'); R(14, by, bw, 2, '#3a2a5e');
+  text('?', 14+bw/2, by+7, {align:'center', scale:2, color:'#c9b6e8'});
+  R(W-14-bw, by, bw, 20, 'rgba(20,11,38,.85)'); R(W-14-bw, by, bw, 2, '#3a2a5e');
+  text(musicOn ? '*' : '-', W-14-bw/2, by+7, {align:'center', scale:2, color: musicOn ? '#4ade8a' : '#6f5f96'});
+
   MUS.tick('menu');
-  if(anyPressed(CONFIRM) || anyTap()){ SFX.pick(); game.screen='menu'; game.menuSel=0; }
-}
-const MENU = [
-  {id:'arcade', label:'АРКАДА', sub:'ТРИ СОПЕРНИКА ПОДРЯД ДО ПОЛНОГО БАКА'},
-  {id:'how', label:'КАК ИГРАТЬ', sub:'ПРАВИЛА, ПРИЁМЫ И ПОЧЕМУ НЕЛЬЗЯ БИТЬ'},
-  {id:'music', label:'МУЗЫКА', sub:'ЧИПТЮН ИЗ ДИНАМИКА АВТОМАТА'}
-];
-function screenMenu(){
-  drawTitleScene(game.t);
-  ctx.fillStyle = 'rgba(12,6,24,.72)'; ctx.fillRect(0,0,W,H);
-  text('ВЫБЕРИ РЕЖИМ', W/2, 30, {align:'center', scale:2, color:'#ffc93c', outline:'#4a2a00'});
-  MENU.forEach((m,i)=>{
-    const y = 70 + i*34;
-    const on = i===game.menuSel;
-    if(on){
-      R(56, y-7, W-112, 26, 'rgba(255,61,127,.18)');
-      R(56, y-7, 3, 26, '#ff3d7f');
-      heartPath(46, y+5, 1, '#ff3d7f');
-    }
-    let label = m.label;
-    if(m.id==='music') label += musicOn ? ': ВКЛ' : ': ВЫКЛ';
-    text(label, 68, y, {scale:2, color: on ? '#fff6fb' : '#a894d0', outline: on ? '#3a0a24' : null});
-    text(m.sub, 68, y+16, {scale:1, color: on ? '#ffc93c' : '#6f5f96'});
-  });
-  text('НАЖМИТЕ НА СТРОКУ', W/2, 228, {align:'center', scale:1, color:'#9b8ac2'});
-  MUS.tick('menu');
-  let go = anyPressed(CONFIRM);
-  MENU.forEach((m,i)=>{ if(tapIn(40, 63+i*34, W-80, 30)){ game.menuSel = i; go = true; } });
-  if(anyPressed(['ArrowDown','KeyS'])){ game.menuSel = (game.menuSel+1)%MENU.length; SFX.move(); }
-  if(anyPressed(['ArrowUp','KeyW'])){ game.menuSel = (game.menuSel+MENU.length-1)%MENU.length; SFX.move(); }
-  if(anyPressed(BACKK)){ game.screen='title'; SFX.back(); }
-  if(go){
-    const m = MENU[game.menuSel];
+
+  if(tapIn(8, by-6, bw+14, 32)){ SFX.pick(); game.howNext = 'title'; game.screen='how'; return; }
+  if(tapIn(W-22-bw, by-6, bw+14, 32)){ musicOn = !musicOn; MUS.reset(); SFX.pick(); return; }
+  if(anyPressed(['KeyH'])){ SFX.pick(); game.howNext = 'title'; game.screen='how'; return; }
+
+  if(anyPressed(CONFIRM) || anyTap()){
     SFX.pick();
-    if(m.id==='music'){ musicOn = !musicOn; MUS.reset(); }
-    else if(m.id==='how'){ game.screen='how'; }
-    else { game.mode = m.id; game.arcadeIdx = 0; game.score = 0; game.screen='select'; game.selWho = 0; game.sel1=0; game.sel2=1; }
+    if(!game.rulesSeen){          // новичку показываем правила один раз
+      game.rulesSeen = true;
+      try{ localStorage.setItem('umilyay_rules', '1'); }catch(e){}
+      game.howNext = 'select';
+      game.screen = 'how';
+    } else {
+      game.arcadeIdx = 0; game.sel1 = 0;
+      game.screen = 'select'; game.selWho = 0;
+    }
   }
 }
 function screenHow(){
@@ -1544,9 +1496,17 @@ function screenHow(){
     ['#4ade8a','ДВА РАУНДА ИЗ ТРЁХ — И БАК ВАШ.']
   ];
   lines.forEach((l,i)=>{ if(l[1]) text(l[1], 24, 46 + i*14, {scale:1, color:l[0]}); });
-  text('НАЖМИТЕ НА ЭКРАН, ЧТОБЫ ВЕРНУТЬСЯ', W/2, 246, {align:'center', scale:1, color:'#9b8ac2'});
+  text(game.howNext === 'select' ? 'НАЖМИТЕ НА ЭКРАН — ВЫБРАТЬ ВОДИТЕЛЯ'
+                                 : 'НАЖМИТЕ НА ЭКРАН, ЧТОБЫ ВЕРНУТЬСЯ',
+       W/2, 246, {align:'center', scale:1, color:'#9b8ac2'});
   MUS.tick('menu');
-  if(anyPressed(CONFIRM) || anyPressed(BACKK) || anyTap()){ SFX.back(); game.screen='menu'; }
+  if(anyPressed(CONFIRM) || anyPressed(BACKK) || anyTap()){
+    SFX.pick();
+    if(game.howNext === 'select'){
+      game.arcadeIdx = 0; game.sel1 = 0; game.selWho = 0;
+      game.screen = 'select';
+    } else game.screen = 'title';
+  }
 }
 function portrait(charDef, x, y, w, h, t, sel){
   ctx.save();
@@ -1593,12 +1553,6 @@ function wrapText(str, x, y, maxW, scale, color, maxLines){
   lines.forEach((l,i)=> text(l, x, y + i*9*scale, {scale, color}));
   return lines.length;
 }
-function statBar(label, val, x, y, col){
-  text(label, x, y, {scale:1, color:'#9b8ac2'});
-  for(let i=0;i<5;i++){
-    R(x+66+i*9, y, 7, 6, i<val ? col : '#2c1c3e');
-  }
-}
 function screenSelect(){
   R(0,0,W,H,'#120a1e');
   bands(0,0,W,H,'#1e1030','#120a1e',6);
@@ -1625,12 +1579,10 @@ function screenSelect(){
   text(c.bio, px+10, 86, {scale:1, color:'#9b8ac2'});
   text(SEX_LABEL[c.sex], px+10, 98, {scale:1, color:'#ff8fb4'});
   wrapText(SEX_HINT[c.sex], px+10, 108, W-px-38, 1, '#6f5f96', 2);
-  statBar('ОБАЯНИЕ', c.stats.charm, px+10, 128, '#ff3d7f');
-  statBar('ПРЫТЬ', c.stats.speed, px+10, 140, '#34dfff');
-  statBar('СТОЙКОСТЬ', c.stats.stoic, px+10, 152, '#4ade8a');
-  R(px+10, 166, W-px-38, 1, '#3a2a5e');
-  text('СУПЕР-ПРИЁМ', px+10, 172, {scale:1, color:'#6f5f96'});
-  text(c.superName, px+10, 182, {scale:1, color:'#ffc93c'});
+  R(px+10, 132, W-px-38, 1, '#3a2a5e');
+  text('СУПЕР-ПРИЁМ', px+10, 140, {scale:1, color:'#6f5f96'});
+  wrapText(c.superName, px+10, 152, W-px-38, 1, '#ffc93c', 2);
+  wrapText('«' + c.win + '»', px+10, 172, W-px-38, 1, '#c9b6e8', 2);
   const btnY = 198, btnH = 20;
   R(px+10, btnY, W-px-38, btnH, '#ff3d7f');
   R(px+10, btnY, W-px-38, 3, '#ff8fb4');
@@ -1652,55 +1604,19 @@ function screenSelect(){
   if(anyPressed(['ArrowDown','KeyS'])){ sel = (cur+3)%6; SFX.move(); }
   if(anyPressed(['ArrowUp','KeyW'])){ sel = (cur+3)%6; SFX.move(); }
   if(who===0) game.sel1 = sel; else game.sel2 = sel;
-  if(anyPressed(BACKK) || backTap){ SFX.back(); if(twoP && who===1) game.selWho=0; else game.screen='menu'; return; }
+  if(anyPressed(BACKK) || backTap){ SFX.back(); game.screen='title'; return; }
   if(go){
     SFX.pick();
     if(twoP && who===0){ game.selWho = 1; if(game.sel2===game.sel1) game.sel2=(game.sel1+1)%6; }
     else {
-      if(!twoP){
-        const others = [0,1,2,3,4,5].filter(i=>i!==game.sel1);
-        game.roster = others.sort(()=>Math.random()-0.5).slice(0,3);
-        game.sel2 = game.roster[0];
-      }
-      game.screen='stage'; game.stageSel = 0;
+      const others = [0,1,2,3,4,5].filter(i=>i!==game.sel1);
+      game.roster = others.sort(()=>Math.random()-0.5).slice(0,3);
+      game.sel2 = game.roster[0];
+      game.stageStart = Math.floor(Math.random()*STAGES.length);
+      game.stage = STAGES[game.stageStart];
+      startMatch();
     }
   }
-}
-function miniStage(s, x, y, w, h, t, sel){
-  ctx.save();
-  ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
-  ctx.translate(x,y);
-  const sc = w/W;
-  ctx.scale(sc, sc);
-  drawStage(s, t);
-  ctx.restore();
-  ctx.strokeStyle = sel ? (Math.floor(t/6)%2 ? '#ffc93c' : '#ff3d7f') : '#3a2a5e';
-  ctx.lineWidth = sel ? 2 : 1;
-  ctx.strokeRect(x+ (sel?1:.5), y+(sel?1:.5), w-(sel?2:1), h-(sel?2:1));
-}
-function screenStage(){
-  bands(0,0,W,H,'#1e1030','#120a1e',6);
-  text('ГДЕ БУДЕМ ДОБРЕТЬ', W/2, 14, {align:'center', scale:2, color:'#ffc93c', outline:'#4a2a00'});
-  const cw = 210, ch = 78;
-  STAGES.forEach((s,i)=>{
-    const col = i%2, row = Math.floor(i/2);
-    const x = 20 + col*(cw+20), y = 42 + row*(ch+34);
-    miniStage(s, x, y, cw, ch, game.t + i*40, i===game.stageSel);
-    text(s.name, x+4, y+ch+5, {scale:1, color: i===game.stageSel ? '#fff6fb':'#a894d0'});
-  });
-  text('НАЖМИТЕ НА ЛОКАЦИЮ', W/2, 250, {align:'center', scale:1, color:'#9b8ac2'});
-  MUS.tick('menu');
-  let go = anyPressed(CONFIRM);
-  const backTap = backChip();
-  STAGES.forEach((s,i)=>{
-    const col = i%2, row = Math.floor(i/2);
-    if(tapIn(20 + col*(cw+20), 42 + row*(ch+34), cw, ch+26)){ game.stageSel = i; go = true; }
-  });
-  if(anyPressed(['ArrowRight','KeyD'])){ game.stageSel=(game.stageSel+1)%4; SFX.move(); }
-  if(anyPressed(['ArrowLeft','KeyA'])){ game.stageSel=(game.stageSel+3)%4; SFX.move(); }
-  if(anyPressed(['ArrowDown','KeyS','ArrowUp','KeyW'])){ game.stageSel=(game.stageSel+2)%4; SFX.move(); }
-  if(anyPressed(BACKK) || backTap){ SFX.back(); game.screen='select'; game.selWho = 0; return; }
-  if(go){ SFX.pick(); game.stage = STAGES[game.stageSel]; startMatch(); }
 }
 function screenVS(){
   const s = game.stage;
@@ -1763,20 +1679,13 @@ function screenFight(){
       updateFighter(a,b); updateFighter(b,a);
       updateProjectiles();
       if(game.phaseT === 60){
-        const w = game.wins[0] >= 2 ? a : (game.wins[1] >= 2 ? b : null);
+        const w = game.wins[0] >= 1 ? a : (game.wins[1] >= 1 ? b : null);
         if(w){
           setBanner('УМИЛИТИ!', w.char.win, 140, '#ff3d7f');
           spawnHearts(w.x, w.y-60, 20);
         }
       }
-      if(game.phaseT > 170){
-        if(game.wins[0] >= 2 || game.wins[1] >= 2){
-          endMatch();
-        } else {
-          game.round++;
-          startRound();
-        }
-      }
+      if(game.phaseT > 170) endMatch();
     }
     updateParticles();
     if(game.shake > 0) game.shake *= 0.86;
@@ -1814,95 +1723,54 @@ function screenFight(){
   if(anyPressed(BACKK)){ SFX.back(); game.screen='title'; MUS.reset(); }
 }
 function endMatch(){
-  const playerWon = game.wins[0] >= 2;
-  if(game.mode==='versus'){
-    game.screen='result'; game.phaseT=0; return;
-  }
-  if(playerWon){
+  if(game.wins[0] >= 1){
     game.arcadeIdx++;
-    if(game.arcadeIdx >= 3){ game.screen='ending'; game.phaseT=0; saveBest(); }
+    if(game.arcadeIdx >= 3){ game.screen='ending'; game.phaseT=0; }
     else {
       game.sel2 = game.roster[game.arcadeIdx];
-      game.stage = STAGES[(game.stageSel + game.arcadeIdx) % 4];
+      game.stage = STAGES[(game.stageStart + game.arcadeIdx) % STAGES.length];
       game.p2 = makeFighter(FIGHTERS[game.sel2], 1, true);
-      game.p1.wins = 0; game.wins=[0,0];
+      game.wins = [0,0];
       game.screen='vs'; game.phaseT=0;
     }
   } else {
-    game.screen='continue'; game.contTimer = 10*60; saveBest();
+    game.screen='result'; game.phaseT=0;
   }
-}
-function saveBest(){
-  if(game.score > game.best){
-    game.best = game.score;
-    TG.saveBest(game.best);
-  }
-}
-let resultSent = false;
-function sendResult(){
-  if(resultSent) return;
-  resultSent = true;
-  SFX.pick();
-  TG.notify('success');
-  TG.send({
-    score: game.score,
-    best: game.best,
-    driver: FIGHTERS[game.sel1].name,
-    beaten: game.arcadeIdx,
-    finished: game.screen === 'ending'
-  });
-}
-function sendChip(y){
-  if(!TG.api) return false;
-  const bw = 236, bx = W/2 - bw/2;
-  R(bx, y, bw, 20, resultSent ? '#3a2a5e' : '#ff3d7f');
-  R(bx, y, bw, 3, resultSent ? '#5a4a7e' : '#ff8fb4');
-  text(resultSent ? 'РЕЗУЛЬТАТ ОТПРАВЛЕН' : 'ОТПРАВИТЬ РЕЗУЛЬТАТ В ЧАТ', W/2, y+7,
-       {align:'center', scale:1, color:'#fff6fb'});
-  return tapIn(bx, y, bw, 20);
-}
-function screenContinue(){
-  drawStage(game.stage, game.t);
-  ctx.fillStyle='rgba(10,4,20,.78)'; ctx.fillRect(0,0,W,H);
-  const secs = Math.max(0, Math.ceil(game.contTimer/60));
-  text('ВАС РАСТОПИЛИ', W/2, 52, {align:'center', scale:3, color:'#ff3d7f', outline:'#3a0a24'});
-  text('ПРОДОЛЖИТЬ?', W/2, 100, {align:'center', scale:2, color:'#fff6fb'});
-  text(String(secs), W/2, 128, {align:'center', scale:6, color: secs<=3 ? '#ff5a5a':'#ffc93c', outline:'#3a0a24'});
-  text('ОЧКИ ' + String(game.score).padStart(6,'0'), W/2, 178, {align:'center', scale:1, color:'#9b8ac2'});
-  const sendTap = sendChip(190);
-  R(W/2-118, 216, 236, 20, '#2fae7a'); R(W/2-118, 216, 236, 3, '#6fe0ad');
-  text('ЕЩЁ ОДНА ПОПЫТКА', W/2, 223, {align:'center', scale:1, color:'#06251a'});
-  game.contTimer--;
-  MUS.tick('menu');
-  if(sendTap){ sendResult(); return; }
-  if(anyPressed(CONFIRM) || tapIn(W/2-118, 216, 236, 20)){
-    SFX.pick();
-    game.p1 = makeFighter(FIGHTERS[game.sel1], 0, false);
-    game.p2 = makeFighter(FIGHTERS[game.sel2], 1, true);
-    game.wins=[0,0]; game.round=1;
-    game.screen='vs'; game.phaseT=0;
-  }
-  if(anyPressed(BACKK) || game.contTimer<=0){ SFX.back(); game.screen='title'; MUS.reset(); }
 }
 function screenResult(){
   drawStage(game.stage, game.t);
-  const w = game.wins[0] >= 2 ? game.p1 : game.p2;
-  const l = w===game.p1 ? game.p2 : game.p1;
-  drawCar(52, 1, game.p1.char.pal.coat, game.t);
-  drawCar(W-52, -1, game.p2.char.pal.coat, game.t);
-  const ww = {...w, x: 190, y:GROUND, facing:1, state:'win', animT:game.t};
-  const ll = {...l, x: 290, y:GROUND, facing:-1, state:'ko', animT:70};
+  const a = game.p1, b = game.p2;
+  drawCar(52, 1, a.char.pal.coat, game.t);
+  drawCar(W-52, -1, b.char.pal.coat, game.t);
+  const ll = {...a, x:200, y:GROUND, facing:1, state:'ko', animT:70};
+  const ww = {...b, x:290, y:GROUND, facing:-1, state:'win', animT:game.t};
   drawFighter(ll, game.t); drawFighter(ww, game.t);
-  if(game.t % 8 === 0) spawnHearts(190, GROUND-70, 1);
+  if(game.t % 9 === 0) spawnHearts(290, GROUND-70, 1);
   updateParticles(); drawParticles();
-  ctx.fillStyle='rgba(10,4,20,.55)'; ctx.fillRect(0,0,W,H);
-  text('ПОБЕДА', W/2, 30, {align:'center', scale:3, color:'#ffc93c', outline:'#4a2a00'});
-  text(w.char.name, W/2, 62, {align:'center', scale:2, color:'#fff6fb', outline:'#3a0a24'});
-  text('«' + w.char.win + '»', W/2, 86, {align:'center', scale:1, color:'#ffd7e6'});
-  text('ПРОБЕЛ — ЕЩЁ РАЗ', W/2, 226, {align:'center', scale:1, color:'#e8dcff'});
-  MUS.tick('win');
-  if(anyPressed(CONFIRM) || anyTap()){ SFX.pick(); game.screen='select'; game.selWho=0; }
-  if(anyPressed(BACKK)){ SFX.back(); game.screen='title'; }
+  ctx.fillStyle='rgba(10,4,20,.6)'; ctx.fillRect(0,0,W,H);
+
+  text('ВАС РАСТОПИЛИ', W/2, 44, {align:'center', scale:3, color:'#ff3d7f', outline:'#3a0a24'});
+  wrapText('«' + b.char.win + '»', W/2 - 150, 88, 300, 1, '#ffd7e6', 2);
+  text('ОЧЕРЕДЬ ДВИНУЛАСЬ БЕЗ ВАС', W/2, 112, {align:'center', scale:1, color:'#c9b6e8'});
+
+  const bw = 200, bx = W/2 - bw/2, by = 168;
+  R(bx, by, bw, 24, '#2fae7a'); R(bx, by, bw, 3, '#6fe0ad');
+  text('ЕЩЁ РАЗ', W/2, by+9, {align:'center', scale:2, color:'#06251a'});
+  text('ИЛИ НАЖМИТЕ МИМО — В МЕНЮ', W/2, 216, {align:'center', scale:1, color:'#9b8ac2'});
+
+  MUS.tick('menu');
+  if(tapIn(bx, by, bw, 24) || anyPressed(CONFIRM)){
+    SFX.pick();
+    game.arcadeIdx = 0;
+    game.p1 = makeFighter(FIGHTERS[game.sel1], 0, false);
+    const others = [0,1,2,3,4,5].filter(i=>i!==game.sel1);
+    game.roster = others.sort(()=>Math.random()-0.5).slice(0,3);
+    game.sel2 = game.roster[0];
+    game.p2 = makeFighter(FIGHTERS[game.sel2], 1, true);
+    game.wins=[0,0]; game.screen='vs'; game.phaseT=0;
+    return;
+  }
+  if(anyTap() || anyPressed(BACKK)){ SFX.back(); game.screen='title'; }
 }
 function screenEnding(){
   game.phaseT++;
@@ -1921,15 +1789,12 @@ function screenEnding(){
     'КАССИР ВЫДАЛ ЧЕК И ВТОРОЙ СТАКАНЧИК КОФЕ — ПРОСТО ТАК.'
   ];
   story.forEach((s,i)=> text(s, W/2, 74 + i*14, {align:'center', scale:1, color:'#e8dcff'}));
-  R(90, 128, 300, 1, '#3a2a5e');
-  text('ОЧКИ ОБАЯНИЯ', W/2, 138, {align:'center', scale:1, color:'#9b8ac2'});
-  text(String(game.score).padStart(6,'0'), W/2, 152, {align:'center', scale:3, color:'#ff3d7f', outline:'#3a0a24'});
-  text('РЕКОРД ' + String(game.best).padStart(6,'0'), W/2, 186, {align:'center', scale:1, color:'#ffc93c'});
-  if(sendChip(198)){ sendResult(); return; }
+  R(110, 130, 260, 1, '#3a2a5e');
+  text('ТРОЕ РАСТАЯЛИ, БАК ПОЛОН', W/2, 142, {align:'center', scale:1, color:'#ffc93c'});
   if(Math.floor(game.t/28)%2===0)
-    text('НАЖМИ НА ЭКРАН — СНОВА В ОЧЕРЕДЬ', W/2, 232, {align:'center', scale:1, color:'#fff6fb'});
+    text('НАЖМИ НА ЭКРАН — СНОВА В ОЧЕРЕДЬ', W/2, 200, {align:'center', scale:1, color:'#fff6fb'});
   MUS.tick('win');
-  if(anyPressed(CONFIRM) || anyTap()){ SFX.pick(); game.screen='title'; game.score=0; resultSent=false; MUS.reset(); }
+  if(anyPressed(CONFIRM) || anyTap()){ SFX.pick(); game.screen='title'; MUS.reset(); }
 }
 
 /* ---------- 12. Главный цикл ---------- */
@@ -1938,13 +1803,10 @@ function frame(){
   ctx.fillStyle = '#06040c'; ctx.fillRect(0,0,W,H);
   switch(game.screen){
     case 'title': screenTitle(); break;
-    case 'menu': screenMenu(); break;
     case 'how': screenHow(); break;
     case 'select': screenSelect(); break;
-    case 'stage': screenStage(); break;
     case 'vs': screenVS(); break;
     case 'fight': screenFight(); break;
-    case 'continue': screenContinue(); break;
     case 'result': screenResult(); break;
     case 'ending': screenEnding(); break;
   }
