@@ -25,53 +25,47 @@
     mix-blend-mode:multiply}
 
   /* два геймпада: слева ходьба, справа приёмы — раскладка повторяет клавиши */
-  .gp{display:none; position:absolute; bottom:calc(10px + env(safe-area-inset-bottom));
-    width:var(--pad); height:var(--pad);
-    display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
-    gap:4px; z-index:5}
-  html.playing .gp{display:grid}
+  .gp{display:none; position:absolute; bottom:calc(6px + env(safe-area-inset-bottom));
+    gap:10px; z-index:5}
+  html.playing .gp{display:flex}
   #padL{left:calc(10px + env(safe-area-inset-left))}
   #padR{right:calc(10px + env(safe-area-inset-right))}
-  .gp .up{grid-area:1/2/2/3}
-  .gp .left{grid-area:2/1/3/2}
-  .gp .right{grid-area:2/3/3/4}
-  .gp .down{grid-area:3/2/4/3}
-  .gp .mid{grid-area:2/2/3/3}
 
   .gp button{
     font-family:inherit; display:flex; flex-direction:column; align-items:center;
     justify-content:center; gap:1px; padding:0; cursor:pointer; touch-action:none;
-    border:2px solid #5a4a86; border-radius:50%; background:rgba(34,22,57,.82);
+    width:clamp(66px, 20vmin, 104px); height:clamp(66px, 20vmin, 104px);
+    border:2px solid #5a4a86; border-radius:50%; background:rgba(34,22,57,.86);
     color:var(--ink); backdrop-filter:blur(2px); transition:transform .05s, background .05s;
   }
-
-  .gp .ico{font-size:clamp(15px,4.4vmin,22px); line-height:1}
-  .gp i{font-style:normal; font-size:8px; letter-spacing:.03em; opacity:.85; font-weight:700}
+  .gp .ico{font-size:clamp(22px,6vmin,30px); line-height:1}
+  .gp i{font-style:normal; font-size:clamp(8px,1.7vmin,10px); letter-spacing:.03em;
+    opacity:.9; font-weight:700}
   .gp button.on{transform:scale(.92)}
   .dirbtn{color:var(--cyan); border-color:#35608f}
   .dirbtn.on{background:var(--cyan); color:#04202a}
-  .bow{color:var(--green); border-color:#2f6b5c; background:rgba(20,44,38,.82)}
-  .bow .ico{font-size:clamp(13px,3.8vmin,19px)}
+  .bow{color:var(--green); border-color:#2f6b5c; background:rgba(20,44,38,.86)}
   .bow.on{background:var(--green); color:#042014}
   .c1,.c2{color:#ffb9d3; border-color:#7a2a55}
   .c1.on,.c2.on{background:var(--pink); color:#3a0a24}
   .c3{color:#ffd98a; border-color:#7a5a22}
   .c3.on{background:var(--gold); color:#2a1a00}
-  /* супер показывается только когда шкала обаяния полна */
-  .sup{display:none; color:#2a1a00; border-color:#ffe9a8; background:rgba(255,201,60,.92);
+  /* когда обаяние набрано, «голос» на время становится супер-приёмом */
+  .c1 .s{display:none}
+  html.superready .c1 .n{display:none}
+  html.superready .c1 .s{display:block}
+  html.superready .c1{color:#2a1a00; border-color:#ffe9a8; background:rgba(255,201,60,.94);
     animation:ready 1s ease-in-out infinite}
-  .sup i{font-size:7px; font-weight:700}
-  html.superready .sup{display:flex}
-  .sup.on{background:#fff0f6; border-color:var(--pink)}
-  @keyframes ready{0%,100%{box-shadow:0 0 0 0 rgba(255,201,60,.55)}50%{box-shadow:0 0 0 7px rgba(255,201,60,0)}}
-  @media (prefers-reduced-motion:reduce){ .sup{animation:none} }
+  html.superready .c1.on{background:#fff0f6; border-color:var(--pink)}
+  @keyframes ready{0%,100%{box-shadow:0 0 0 0 rgba(255,201,60,.5)}50%{box-shadow:0 0 0 8px rgba(255,201,60,0)}}
+  @media (prefers-reduced-motion:reduce){ html.superready .c1{animation:none} }
 
   /* вертикальный телефон: разворачиваем игру целиком, чтобы экран был длинным */
   html.rot #app{
     width:100vh; height:100vw; width:100dvh; height:100dvw;
     transform-origin:top left; transform:rotate(90deg) translateY(-100%);
   }
-  html.rot #padL{left:calc(44px + env(safe-area-inset-top))}   /* под шапкой Telegram */
+  html.rot #padL{left:calc(16px + env(safe-area-inset-top))}
   #rotHint{
     position:fixed; left:50%; bottom:14px; transform:translateX(-50%);
     z-index:20; padding:7px 13px; border-radius:999px; pointer-events:none; font-size:12px;
@@ -92,17 +86,18 @@
   </div>
 
   <div class="gp" id="padL">
-    <button class="dirbtn up" data-k="KeyW" aria-label="Прыжок"><span class="ico">▲</span></button>
-    <button class="dirbtn left" data-k="KeyA" aria-label="Назад"><span class="ico">◀</span></button>
-    <button class="dirbtn right" data-k="KeyD" aria-label="Вперёд"><span class="ico">▶</span></button>
-    <button class="mid bow" data-k="KeyS" aria-label="Поклон"><span class="ico">▼</span></button>
+    <button class="dirbtn" data-k="KeyA" aria-label="Назад"><span class="ico">◀</span></button>
+    <button class="bow" data-k="KeyS" aria-label="Поклон"><span class="ico">▼</span><i>ПОКЛОН</i></button>
+    <button class="dirbtn" data-k="KeyD" aria-label="Вперёд"><span class="ico">▶</span></button>
   </div>
 
   <div class="gp" id="padR">
-    <button class="sup mid" data-k="ArrowUp" aria-label="Супер-приём"><span class="ico">⭐</span><i>СУПЕР</i></button>
-    <button class="c1 left" data-k="ArrowLeft" aria-label="Голос"><span class="ico">💬</span><i>ГОЛОС</i></button>
-    <button class="c3 right" data-k="ArrowRight" aria-label="Шоколадка"><span class="ico">🍫</span><i>ШОКОЛАД</i></button>
-    <button class="c2 down" data-k="ArrowDown" aria-label="Букет"><span class="ico">💐</span><i>БУКЕТ</i></button>
+    <button class="c1" data-k="ArrowLeft" data-super="ArrowUp" aria-label="Голос">
+      <span class="ico n">💬</span><i class="n">ГОЛОС</i>
+      <span class="ico s">⭐</span><i class="s">СУПЕР</i>
+    </button>
+    <button class="c2" data-k="ArrowDown" aria-label="Букет"><span class="ico">💐</span><i>БУКЕТ</i></button>
+    <button class="c3" data-k="ArrowRight" aria-label="Шоколадка"><span class="ico">🍫</span><i>ШОКОЛАД</i></button>
   </div>
 </div>
 <div id="rotHint">↻ <b>Поверните телефон</b> — игра уже развёрнута</div>
@@ -508,14 +503,21 @@ addEventListener('keydown', e=>{
 addEventListener('keyup', e=>{ keys[e.code] = false; });
 addEventListener('blur', ()=>{ for(const k in keys) keys[k] = false; });
 document.querySelectorAll('.gp button').forEach(b=>{
-  const k = b.dataset.k;
+  let held = null;
+  const keyFor = () => (b.dataset.super && document.documentElement.classList.contains('superready'))
+    ? b.dataset.super : b.dataset.k;
   const down = e=>{
     e.preventDefault(); ac();
-    if(!keys[k]) pressed[k] = true;
-    keys[k] = true; b.classList.add('on');
+    held = keyFor();
+    if(!keys[held]) pressed[held] = true;
+    keys[held] = true; b.classList.add('on');
     TG.haptic('light');
   };
-  const up = e=>{ e.preventDefault(); keys[k] = false; b.classList.remove('on'); };
+  const up = e=>{
+    e.preventDefault();
+    if(held){ keys[held] = false; held = null; }
+    b.classList.remove('on');
+  };
   b.addEventListener('pointerdown', down, {passive:false});
   b.addEventListener('pointerup', up, {passive:false});
   b.addEventListener('pointerleave', up);
@@ -1930,6 +1932,7 @@ function frame(){
     case 'ending': screenEnding(); break;
   }
   document.documentElement.classList.toggle('playing', game.screen === 'fight');
+  if(game.screen === 'fight'){ const h = hintEl(); if(h) h.classList.remove('show'); }
   document.documentElement.classList.toggle('superready',
     game.screen === 'fight' && !!game.p1 && game.p1.meter >= 100 && game.p1.state !== 'ko');
   TG.syncBack(game.screen !== 'title');
